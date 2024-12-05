@@ -35,6 +35,12 @@ app.use(
   )
 );
 
+// Middleware
+app.use((req, res, next) => {
+  // console.log("Request Headers:", JSON.stringify(req.headers, null, 2));
+  next();
+});
+
 // Define a basic route
 app.get('/', (req, res) => {
   res.send('Hello, world!');

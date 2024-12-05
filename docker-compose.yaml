@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  backend:
+    image: backend # Or use your custom backend image
+    container_name: backend_service
+    build:
+      context: ./backend
+    env_file:
+      - ./backend/.env
+    ports:
+      - '5000:3000'
+    environment:
+      - NODE_ENV=production
+
+  nginx:
+    image: nginx_proxy:latest
+    container_name: nginx_proxy
+    build:
+      context: ./nginx
+    volumes:
+      - ./nginx/logs:/var/log/nginx # Mount a host directory to persist logs
+    ports:
+      - '8080:80' # Expose Nginx on port 8080
+    depends_on:
+      - backend
+      - geoip
+
+  geoip:
+    image: ghcr.io/observabilitystack/geoip-api
+    ports:
+      - 8081:8080
+
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    ports:
+      - '3100:3100' # Expose Loki on port 3100
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./loki/config:/etc/loki # Config for Loki
+      - loki_data:/data # Persistent data storage for Loki
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    depends_on:
+      - loki
+    volumes:
+      - ./promtail/config:/etc/promtail # Config for Promtail
+      - ./nginx/logs:/var/log/nginx # Nginx logs for Promtail to scrape
+    command: -config.file=/etc/promtail/promtail-config.yaml
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - '3000:3000' # Expose Grafana on port 3000
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin # Default admin password
+    depends_on:
+      - loki
+    volumes:
+      - grafana_data:/var/lib/grafana:rw # Persistent storage for Grafana
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - prometheus_data:/prometheus # Persistent data volume
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml # Config file
+    ports:
+      - '9090:9090'
+
+networks:
+  default:
+    driver: bridge
+
+volumes:
+  grafana_data:
+  loki_data:
+  prometheus_data:

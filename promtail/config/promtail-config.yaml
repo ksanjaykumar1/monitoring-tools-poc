@@ -1,0 +1,35 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /var/log/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: nginx
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx
+          __path__: /var/log/nginx/*.log
+    pipeline_stages:
+      # Parse the JSON log line and extract fields
+      - json:
+          expressions:
+            msec: msec
+            connection: connection
+            connection_requests: connection_requests
+            pid: pid
+            request_id: request_id
+            request_length: request_length
+            remote_addr: remote_addr
+            status: status
+            request_time: request_time
+            request: request
+            http_user_agent: http_user_agent
+            geoip_country_code: geoip_country_code
+            geoip_city_name: geoip_city_name
