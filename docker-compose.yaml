@@ -31,21 +31,112 @@ services:
     ports:
       - 8081:8080
 
-  loki:
-    image: grafana/loki:latest
-    container_name: loki
+  minio:
+    image: minio/minio
+    entrypoint:
+      - sh
+      - -euc
+      - |
+        mkdir -p /data/loki-data && \
+        mkdir -p /data/loki-ruler &&
+        minio server --address "0.0.0.0:9000" --console-address "0.0.0.0:9001" /data
+    environment:
+      - MINIO_ROOT_USER=loki
+      - MINIO_ROOT_PASSWORD=supersecret
+      - MINIO_PROMETHEUS_AUTH_TYPE=public
+      - MINIO_UPDATE=off
     ports:
-      - '3100:3100' # Expose Loki on port 3100
-    command: -config.file=/etc/loki/local-config.yaml
+      - "9000:9000"
+      - "9001:9001"
     volumes:
-      - ./loki/config:/etc/loki # Config for Loki
-      - loki_data:/data # Persistent data storage for Loki
+      - ./.data/minio:/data
+  # loki:
+  #   image: grafana/loki:latest
+  #   container_name: loki
+  #   ports:
+  #     - '3100:3100' # Expose Loki on port 3100
+  #   command: -config.file=/etc/loki/local-config.yaml
+  #   volumes:
+  #     - ./loki/config:/etc/loki # Config for Loki
+  #     - loki_data:/data # Persistent data storage for Loki
+
+  loki-gateway:
+    container_name: loki-gateway
+    image: nginx:latest
+    volumes:
+      - ./loki/config/nginx.conf:/etc/nginx/nginx.conf
+    ports:
+      - "8082:80"
+      - "3100"
+    depends_on:
+      - loki-read
+      - loki-write
+      - loki-backend
+
+  loki-read:
+    image: grafana/loki:latest
+    volumes:
+      - ./loki/config:/etc/loki/
+    # only needed for interactive debugging with dlv
+    # cap_add:
+    #   - SYS_PTRACE
+    # security_opt:
+    #   - apparmor=unconfined
+    ports:
+      - "3100"
+      - "7946"
+      # uncomment to use interactive debugging
+      # - "40000-40002:40000" # makes the replicas available on ports 40000, 40001, 40002
+    command: "-config.file=/etc/loki/loki.yaml -target=read -legacy-read-mode=false"
+    restart: always
+    deploy:
+      mode: replicated
+      replicas: 3
+
+  loki-write:
+    image: grafana/loki:latest
+    volumes:
+      - ./loki/config:/etc/loki/
+    # only needed for interactive debugging with dlv
+    # cap_add:
+    #   - SYS_PTRACE
+    # security_opt:
+    #   - apparmor=unconfined
+    ports:
+      - "3100"
+      - "7946"
+      # uncomment to use interactive debugging
+      # - "50000-50002:40000" #  makes the replicas available on ports 50000, 50001, 50002
+    command: "-config.file=/etc/loki/loki.yaml -target=write"
+    restart: always
+    deploy:
+      mode: replicated
+      replicas: 3
+
+  loki-backend:
+    image: grafana/loki:latest
+    volumes:
+      - ./loki/config:/etc/loki/
+      - ./rules:/loki/rules:ro
+    # only needed for interactive debugging with dlv
+    # cap_add:
+    #   - SYS_PTRACE
+    # security_opt:
+    #   - apparmor=unconfined
+    ports:
+      - "3100"
+      - "7946"
+      # uncomment to use interactive debugging
+      # - "60000-60002:40000" #  makes the replicas available on ports 60000, 60001, 60002
+    command: "-config.file=/etc/loki/loki.yaml -target=backend -legacy-read-mode=false"
+    restart: always
+    deploy:
+      mode: replicated
+      replicas: 3
 
   promtail:
     image: grafana/promtail:latest
     container_name: promtail
-    depends_on:
-      - loki
     volumes:
       - ./promtail/config:/etc/promtail # Config for Promtail
       - ./nginx/logs:/var/log/nginx # Nginx logs for Promtail to scrape
@@ -58,8 +149,6 @@ services:
       - '3000:3000' # Expose Grafana on port 3000
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin # Default admin password
-    depends_on:
-      - loki
     volumes:
       - grafana_data:/var/lib/grafana:rw # Persistent storage for Grafana
 
@@ -73,8 +162,7 @@ services:
       - '9090:9090'
 
 networks:
-  default:
-    driver: bridge
+  loki:
 
 volumes:
   grafana_data:
