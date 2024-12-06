@@ -13,12 +13,19 @@ common:
   replication_factor: 3
 
 storage_config:
-  aws:
-    endpoint: minio:9000
+  # aws:
+  #   endpoint: minio:9000
+  #   insecure: true
+  #   bucketnames: loki-data
+  #   access_key_id: loki
+  #   secret_access_key: supersecret
+  #   s3forcepathstyle: true
+   aws:
+    endpoint: /run/secrets/s3_endpoint
     insecure: true
     bucketnames: loki-data
-    access_key_id: loki
-    secret_access_key: supersecret
+    access_key_id: /run/secrets/s3_access_key
+    secret_access_key: /run/secrets/s3_secret_key
     s3forcepathstyle: true
 
 memberlist:
