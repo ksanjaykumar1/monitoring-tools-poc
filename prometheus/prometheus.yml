@@ -4,4 +4,8 @@ global:
 scrape_configs:
   - job_name: 'loki'
     static_configs:
-      - targets: ['loki:3100']
+      - targets: ['192.168.101.67:3100']
+  - job_name: 'server'
+    static_configs:
+      - targets:
+          - 192.168.101.67:9100
