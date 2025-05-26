@@ -122,6 +122,7 @@ limits_config:
   # parallelize queries in 15min intervals
   split_queries_by_interval: 15m
   volume_enabled: true
+  query_timeout: 0
 
 table_manager:
   retention_deletes_enabled: true

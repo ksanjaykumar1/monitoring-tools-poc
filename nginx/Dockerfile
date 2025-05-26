@@ -39,10 +39,10 @@
 #     && rm -rf /tmp/*
 
 # Stage 1: Build GeoIP2 Module
-ARG NGINX_FROM_IMAGE=nginx:mainline
+ARG NGINX_VERSION=1.27.4  # Set the NGINX version explicitly
+ARG NGINX_FROM_IMAGE=nginx:${NGINX_VERSION}
 FROM ${NGINX_FROM_IMAGE} as builder
 
-ARG NGINX_VERSION=1.27.2  # Set the NGINX version explicitly
 ARG PKG_RELEASE=1~  # Adjust to match your distribution
 
 SHELL ["/bin/bash", "-exo", "pipefail", "-c"]

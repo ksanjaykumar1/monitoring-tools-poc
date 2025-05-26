@@ -154,7 +154,7 @@ services:
     image: grafana/grafana:latest
     container_name: grafana
     ports:
-      - '3000:3000' # Expose Grafana on port 3000
+      - '80:3000' # Expose Grafana on port 3000
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin # Default admin password
       - GF_SMTP_ENABLED
@@ -176,7 +176,21 @@ services:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml # Config file
     ports:
       - '9090:9090'
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
   
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    ports:
+    - 9080:8080
+    volumes:
+    - /:/rootfs:ro
+    - /var/run:/var/run:ro
+    - /sys:/sys:ro
+    - /var/lib/docker/:/var/lib/docker:ro
+    - /dev/disk/:/dev/disk:ro
+
   node_exporter:
     image: quay.io/prometheus/node-exporter:latest
     container_name: node_exporter
